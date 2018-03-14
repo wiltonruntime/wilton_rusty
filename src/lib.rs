@@ -1,7 +1,20 @@
+/*
+ * Copyright 2018, alex at staticlibs.net
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-// todo: removeme
-#[macro_use]
-extern crate serde_derive;
+//! Rust modules support for Wilton JavaScript runtime - https://github.com/wilton-iot/wilton
 
 extern crate serde;
 extern crate serde_json;
@@ -9,6 +22,10 @@ extern crate serde_json;
 use std::os::raw::*;
 use std::ptr::null;
 use std::ptr::null_mut;
+
+
+// wilton C API import
+// https://github.com/wilton-iot/wilton_core/tree/master/include/wilton
 
 extern "system" {
 
@@ -38,6 +55,9 @@ fn wiltoncall_register(
 
 static EMPTY_JSON_INPUT: &'static str = "{}";
 type WiltonCallback = Box<Fn(&[u8]) -> Result<String, String>>;
+
+
+// helper functions
 
 fn copy_to_wilton_bufer(data: &str) -> *mut c_char {
     unsafe {
@@ -80,6 +100,8 @@ fn panicmsg<'a>(e: &'a std::boxed::Box<std::any::Any + std::marker::Send + 'stat
 }
 
 
+// callback that is passed to wilton
+
 #[no_mangle]
 #[allow(private_no_mangle_fns)]
 extern "system" fn wilton_cb(
@@ -114,6 +136,53 @@ extern "system" fn wilton_cb(
     }
 }
 
+/// Registers a closure, that can be called from JavaScript
+///
+/// This function takes a closure and registers it with Wilton, so
+/// it can be called from JavaScript using [wiltoncall](https://wilton-iot.github.io/wilton/docs/html/namespacewiltoncall.html)
+/// API.
+///
+/// Closure must take a single argument - a struct that implements [serde::Deserialize](https://docs.serde.rs/serde/trait.Deserialize.html)
+/// and must return a struct that implements [serde::Serialize](https://docs.serde.rs/serde/trait.Serialize.html).
+/// Closure input argument is converted from JavaScript object to Rust struct object.
+/// Closure output is returned to JavaScript as a JSON (that can be immediately converted to JavaScript object).
+///
+/// Usage example:
+///
+/// ```
+/// // configure Cargo to build a shared library
+/// [lib]
+/// crate-type = ["dylib"]
+/// 
+/// // in lib.rs, import serde and wilton_rust
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate wilton_rust;
+/// ...
+/// // declare input/output structs
+/// #[derive(Deserialize)]
+/// struct MyIn { ... }
+/// #[derive(Serialize)]
+/// struct MyOut { ... }
+/// ...
+/// // write a function that does some work
+/// fn hello(obj: MyIn) -> MyOut { ... }
+/// ...
+/// // register that function inside the `wilton_module_init` function,
+/// // that will be called by Wilton during the Rust module load
+/// #[no_mangle]
+/// pub extern "C" fn wilton_module_init() -> *mut std::os::raw::c_char {
+///     // register a call, error checking omitted
+///     wilton_rust::register_wiltocall("example_hello", |obj: MyIn| { hello(obj) });
+///		// return success status to Wilton
+///     wilton_rust::create_wilton_error(None)
+/// }
+///
+/// ```
+///
+/// See an [example](https://github.com/wilton-iot/wilton_examples/blob/master/rust/test.js#L17)
+/// how to load and use this Rust library from JavaScript.
+///
 pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F: 'static + Fn(I) -> O>(
     name: &str,
     callback: F
@@ -139,7 +208,7 @@ pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F
         // unboxed callbacks are leaked here: 16 byte per callback
         // it seems not easy to make their destructors to run after main
         // https://stackoverflow.com/a/27826181/314015
-        // it may be easier to suppress wilton_module_init leaks in valgrind
+        // it may be easier to suppress wilton_module_inie leaks in valgrind
         // let callback_unleak = Box::from_raw(callback_bare);
 
         let err: *mut c_char = wiltoncall_register(
@@ -156,47 +225,30 @@ pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F
     }
 }
 
+/// Create an error message, that can be passed back to Wilton
+///
+/// Helper function, that can be used with Rust `Result`s, returned
+/// from `wilton_rust::register_wiltoncall` function.
+///
+/// Usage example:
+///
+///```
+/// // register a call
+/// let res1 = wilton_rust::register_wiltocall("example_hello", |obj: MyObj1| { hello(obj) });
+///
+/// // check for error
+/// if res1.is_err() {
+///		// return error message to Wilton
+///     return wilton_rust::create_wilton_error(res1.err());
+/// }
+///
+///	// return success status to Wilton
+/// wilton_rust::create_wilton_error(None)
+///```
+///
 pub fn create_wilton_error(error_opt: Option<String>) -> *mut c_char {
     match error_opt {
         Some(msg) => copy_to_wilton_bufer(&msg),
         None => null_mut::<c_char>()
     }
-}
-
-
-// todo: removeme
-#[derive(Deserialize)]
-struct MyIn {
-    bar: i32,
-    baz: i32,
-}
-
-#[derive(Serialize)]
-struct MyOut {
-    boo: i32,
-    baa: i32,
-}
-
-#[no_mangle]
-pub extern "C" fn wilton_module_init() -> *mut c_char {
-
-    const NUM1: i32 = 5;
-
-    // register foo call
-    let foo_res = register_wiltocall("foo", |obj: MyIn| -> MyOut {
-        MyOut { boo: (obj.bar + NUM1), baa: (obj.baz + NUM1) }
-    });
-    if foo_res.is_err() {
-        return create_wilton_error(foo_res.err());
-    }
-    
-    // register bar call
-    let bar_res = register_wiltocall("bar", |obj: MyIn| -> MyOut {
-        MyOut { boo: (obj.bar - NUM1), baa: (obj.baz - NUM1) }
-    });
-    if bar_res.is_err() {
-        return create_wilton_error(bar_res.err());
-    }
-
-    create_wilton_error(None)
 }
