@@ -1,0 +1,14 @@
+[package]
+name = "wilton_rust"
+version = "0.1.0"
+authors = ["wilton"]
+
+[lib]
+crate-type = ["dylib"]
+
+[dependencies]
+serde = "1.0"
+serde_json = "1.0"
+# todo: removeme
+serde_derive = "1.0"
+
