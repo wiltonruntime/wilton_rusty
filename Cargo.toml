@@ -3,6 +3,13 @@ name = "wilton_rust"
 version = "0.1.0"
 authors = ["wilton"]
 
+license = "Apache-2.0"
+description = "Rust modules support for Wilton JavaScript runtime"
+documentation = "https://docs.rs/wilton_rust/"
+repository = "https://github.com/wilton-iot/wilton_rust"
+keywords = ["javascript", "wilton"]
+categories = ["development-tools"]
+
 [dependencies]
 serde = "1.0"
 serde_json = "1.0"

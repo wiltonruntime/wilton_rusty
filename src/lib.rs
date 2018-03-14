@@ -14,7 +14,43 @@
  * limitations under the License.
  */
 
-//! Rust modules support for Wilton JavaScript runtime - https://github.com/wilton-iot/wilton
+//! Rust modules support for [Wilton JavaScript runtime](https://github.com/wilton-iot/wilton)
+//!
+//! Usage example:
+//!
+//! ```
+//!// configure Cargo to build a shared library
+//![lib]
+//!crate-type = ["dylib"]
+//! 
+//!// in lib.rs, import serde and wilton_rust
+//!#[macro_use]
+//!extern crate serde_derive;
+//!extern crate wilton_rust;
+//! ...
+//!// declare input/output structs
+//!#[derive(Deserialize)]
+//!struct MyIn { ... }
+//!#[derive(Serialize)]
+//!struct MyOut { ... }
+//! ...
+//!// write a function that does some work
+//!fn hello(obj: MyIn) -> MyOut { ... }
+//! ...
+//!// register that function inside the `wilton_module_init` function,
+//!// that will be called by Wilton during the Rust module load
+//!#[no_mangle]
+//!pub extern "C" fn wilton_module_init() -> *mut std::os::raw::c_char {
+//!    // register a call, error checking omitted
+//!    wilton_rust::register_wiltocall("hello", |obj: MyIn| { hello(obj) });
+//!    // return success status to Wilton
+//!    wilton_rust::create_wilton_error(None)
+//!}
+//!
+//! ```
+//!
+//! See an [example](https://github.com/wilton-iot/wilton_examples/blob/master/rust/test.js#L17)
+//! how to load and use Rust library from JavaScript.
 
 extern crate serde;
 extern crate serde_json;
@@ -147,42 +183,37 @@ extern "system" fn wilton_cb(
 /// Closure input argument is converted from JavaScript object to Rust struct object.
 /// Closure output is returned to JavaScript as a JSON (that can be immediately converted to JavaScript object).
 ///
-/// Usage example:
+/// If closure panics, its panic message is converted into JavaScript `Error` message (that can be
+/// caugth and handled on JavaScript side).
+///
+///# Arguments
+///
+///* `name` - name this call, that should be used from JavaScript to invoke the closure
+///* `callback` - closure, that will be called from JavaScript
+///
+///# Example
 ///
 /// ```
-/// // configure Cargo to build a shared library
-/// [lib]
-/// crate-type = ["dylib"]
-/// 
-/// // in lib.rs, import serde and wilton_rust
-/// #[macro_use]
-/// extern crate serde_derive;
-/// extern crate wilton_rust;
-/// ...
 /// // declare input/output structs
-/// #[derive(Deserialize)]
-/// struct MyIn { ... }
-/// #[derive(Serialize)]
-/// struct MyOut { ... }
+///#[derive(Deserialize)]
+///struct MyIn { ... }
+///#[derive(Serialize)]
+///struct MyOut { ... }
 /// ...
 /// // write a function that does some work
-/// fn hello(obj: MyIn) -> MyOut { ... }
+///fn hello(obj: MyIn) -> MyOut { ... }
 /// ...
 /// // register that function inside the `wilton_module_init` function,
 /// // that will be called by Wilton during the Rust module load
-/// #[no_mangle]
-/// pub extern "C" fn wilton_module_init() -> *mut std::os::raw::c_char {
-///     // register a call, error checking omitted
-///     wilton_rust::register_wiltocall("example_hello", |obj: MyIn| { hello(obj) });
-///		// return success status to Wilton
-///     wilton_rust::create_wilton_error(None)
-/// }
+///#[no_mangle]
+///pub extern "C" fn wilton_module_init() -> *mut std::os::raw::c_char {
+///    // register a call, error checking omitted
+///    wilton_rust::register_wiltocall("hello", |obj: MyIn| { hello(obj) });
+///    // return success status to Wilton
+///    wilton_rust::create_wilton_error(None)
+///}
 ///
 /// ```
-///
-/// See an [example](https://github.com/wilton-iot/wilton_examples/blob/master/rust/test.js#L17)
-/// how to load and use this Rust library from JavaScript.
-///
 pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F: 'static + Fn(I) -> O>(
     name: &str,
     callback: F
@@ -230,20 +261,24 @@ pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F
 /// Helper function, that can be used with Rust `Result`s, returned
 /// from `wilton_rust::register_wiltoncall` function.
 ///
-/// Usage example:
+///# Arguments
+///
+///* `error_opt` - optional error message, that should be passed back to Wilton
+///
+///# Example
 ///
 ///```
 /// // register a call
-/// let res1 = wilton_rust::register_wiltocall("example_hello", |obj: MyObj1| { hello(obj) });
+///let res = wilton_rust::register_wiltocall("hello", |obj: MyObj1| { hello(obj) });
 ///
 /// // check for error
-/// if res1.is_err() {
-///		// return error message to Wilton
-///     return wilton_rust::create_wilton_error(res1.err());
-/// }
+///if res.is_err() {
+///    // return error message to Wilton
+///    return wilton_rust::create_wilton_error(res.err());
+///}
 ///
-///	// return success status to Wilton
-/// wilton_rust::create_wilton_error(None)
+/// // return success status to Wilton
+///wilton_rust::create_wilton_error(None)
 ///```
 ///
 pub fn create_wilton_error(error_opt: Option<String>) -> *mut c_char {
