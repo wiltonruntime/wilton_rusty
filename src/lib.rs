@@ -86,6 +86,15 @@ fn wiltoncall_register(
     ) -> *mut c_char
 ) -> *mut c_char;
 
+fn wiltoncall_runscript(
+        script_engine_name: *const c_char,
+        script_engine_name_len: c_int,
+        json_in: *const c_char,
+        json_in_len: c_int,
+        json_out: *mut *mut c_char,
+        json_out_len: *mut c_int
+) -> *mut c_char;
+
 }
 
 
@@ -239,7 +248,7 @@ pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F
         // unboxed callbacks are leaked here: 16 byte per callback
         // it seems not easy to make their destructors to run after main
         // https://stackoverflow.com/a/27826181/314015
-        // it may be easier to suppress wilton_module_inie leaks in valgrind
+        // it may be easier to suppress wilton_module_init leaks in valgrind
         // let callback_unleak = Box::from_raw(callback_bare);
 
         let err: *mut c_char = wiltoncall_register(
@@ -285,5 +294,76 @@ pub fn create_wilton_error(error_opt: Option<String>) -> *mut c_char {
     match error_opt {
         Some(msg) => copy_to_wilton_bufer(&msg),
         None => null_mut::<c_char>()
+    }
+}
+
+/// Call JavaScript function
+///
+/// Allows to call a specified JavaScript function
+/// passing arguments as a list of JSON values and receiving
+/// result as a `String`.
+///
+///# Arguments (JSON call descriptor fields)
+///
+///* `module` -  name of the RequireJS module
+///* `func` -  name of the function field in the module object (optional: not needed if module
+/// itself is a function)
+///* `args` -  function arguments (optional)
+///
+///# Example
+///
+///```
+/// // create call descriptor
+///let call_desc = json!({
+///    "module": "lodash/string",
+///    "func": "capitalize",
+///    "args": [msg]
+///});
+///
+/// // perform the call and check the results
+///match wilton_rust::runscript(&call_desc) {
+///    Ok(res) => res,
+///    Err(e) => panic!(e)
+///}
+///```
+///
+pub fn runscript(call_desc: &serde_json::Value) -> Result<String, String> {
+    unsafe {
+        use std::error::Error;
+        match serde_json::to_string_pretty(&call_desc) {
+            Err(e) => Err(String::from(e.description())),
+            Ok(ref mut json) => {
+                let empty = String::new();
+                json.push('\0'); // required by some of JS engines
+                let json_bytes = json.as_bytes();
+                let mut out: *mut c_char = null_mut::<c_char>();
+                let mut out_len: c_int = 0;
+                let err: *mut c_char = wiltoncall_runscript(
+                    empty.as_bytes().as_ptr() as *const c_char,
+                    0 as c_int,
+                    json_bytes.as_ptr() as *const c_char,
+                    (json_bytes.len() - 1) as c_int,
+                    &mut out as *mut *mut c_char,
+                    &mut out_len as *mut c_int);
+                if null_mut::<c_char>() != err {
+                    Err(convert_wilton_error(err))
+                } else {
+                    let res = if (null_mut::<c_char>() != out) && (out_len > 0) {
+                        let slice = std::slice::from_raw_parts(out as *const u8, out_len as usize);
+                        let vec = slice.to_vec();
+                        match String::from_utf8(vec) {
+                            Err(e) => Err(String::from(e.description())),
+                            Ok(str) => Ok(str)
+                        }
+                    } else {
+                        Ok(String::new())
+                    };
+                    if null_mut::<c_char>() != out {
+                        wilton_free(out);
+                    }
+                    res
+                }
+            }
+        }
     }
 }

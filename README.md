@@ -16,8 +16,13 @@ This project is released under the [Apache License 2.0](http://www.apache.org/li
 Changelog
 ---------
 
+**2018-04-14**
+
+ * version `0.2.0`
+ * support backcalls to JS
+
 **2018-03-14**
 
- * version 0.1.0
+ * version `0.1.0`
  * initial public version
 
