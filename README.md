@@ -5,7 +5,7 @@ This library allows to write Wilton native modules in Rust.
 
  - [crate on crates.io](https://crates.io/crates/wilton_rust)
  - [API documentation](https://docs.rs/wilton_rust/)
- - [rust module example](https://github.com/wilton-iot/wilton_examples/tree/master/rust)
+ - [rust module example](https://github.com/wiltonruntime/wilton_examples/tree/master/rust)
 
 
 License information
@@ -15,6 +15,12 @@ This project is released under the [Apache License 2.0](http://www.apache.org/li
 
 Changelog
 ---------
+
+**2021-03-10**
+
+ * version `0.3.0`
+ * fix new compiler warnings
+ * wilton URL changes in docs
 
 **2018-04-14**
 

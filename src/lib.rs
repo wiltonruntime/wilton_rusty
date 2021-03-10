@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//! Rust modules support for [Wilton JavaScript runtime](https://github.com/wilton-iot/wilton)
+//! Rust modules support for [Wilton JavaScript runtime](https://github.com/wiltonruntime/wilton)
 //!
 //! Usage example:
 //!
@@ -49,7 +49,7 @@
 //!
 //! ```
 //!
-//! See an [example](https://github.com/wilton-iot/wilton_examples/blob/master/rust/test.js#L17)
+//! See an [example](https://github.com/wiltonruntime/wilton_examples/blob/master/rust/test.js#L17)
 //! how to load and use Rust library from JavaScript.
 
 extern crate serde;
@@ -61,7 +61,7 @@ use std::ptr::null_mut;
 
 
 // wilton C API import
-// https://github.com/wilton-iot/wilton_core/tree/master/include/wilton
+// https://github.com/wiltonruntime/wilton_core/tree/master/include/wilton
 
 extern "system" {
 
@@ -99,7 +99,7 @@ fn wiltoncall_runscript(
 
 
 static EMPTY_JSON_INPUT: &'static str = "{}";
-type WiltonCallback = Box<Fn(&[u8]) -> Result<String, String>>;
+type WiltonCallback = Box<dyn Fn(&[u8]) -> Result<String, String>>;
 
 
 // helper functions
@@ -132,7 +132,7 @@ fn convert_wilton_error(err: *mut c_char) -> String {
 }
 
 // https://github.com/rustytools/errloc_macros/blob/79f5378e913293cb1b4a561fb7dc8d5cbcd09bc6/src/lib.rs#L44
-fn panicmsg<'a>(e: &'a std::boxed::Box<std::any::Any + std::marker::Send + 'static>) -> &'a str {
+fn panicmsg<'a>(e: &'a std::boxed::Box<dyn std::any::Any + std::marker::Send + 'static>) -> &'a str {
     match e.downcast_ref::<&str>() {
         Some(st) => st,
         None => {
@@ -148,7 +148,6 @@ fn panicmsg<'a>(e: &'a std::boxed::Box<std::any::Any + std::marker::Send + 'stat
 // callback that is passed to wilton
 
 #[no_mangle]
-#[allow(private_no_mangle_fns)]
 extern "system" fn wilton_cb(
     call_ctx: *mut c_void,
     json_in: *const c_char,
@@ -166,7 +165,7 @@ extern "system" fn wilton_cb(
             // https://stackoverflow.com/a/32270215/314015
             let callback_boxed_ptr = std::mem::transmute::<*mut c_void, *mut WiltonCallback>(call_ctx);
             let callback_boxed_ref: &mut WiltonCallback = &mut *callback_boxed_ptr;
-            let callback_ref: &mut Fn(&[u8]) -> Result<String, String> = &mut **callback_boxed_ref;
+            let callback_ref: &mut dyn Fn(&[u8]) -> Result<String, String> = &mut **callback_boxed_ref;
             match callback_ref(data) {
                 Ok(res) => {
                     *json_out = copy_to_wilton_bufer(&res);
@@ -184,7 +183,7 @@ extern "system" fn wilton_cb(
 /// Registers a closure, that can be called from JavaScript
 ///
 /// This function takes a closure and registers it with Wilton, so
-/// it can be called from JavaScript using [wiltoncall](https://wilton-iot.github.io/wilton/docs/html/namespacewiltoncall.html)
+/// it can be called from JavaScript using [wiltoncall](https://wiltonruntime.github.io/wilton/docs/html/namespacewiltoncall.html)
 /// API.
 ///
 /// Closure must take a single argument - a struct that implements [serde::Deserialize](https://docs.serde.rs/serde/trait.Deserialize.html)
@@ -228,7 +227,6 @@ pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F
     callback: F
 ) -> Result<(), String> {
     unsafe {
-        use std::error::Error;
         let name_bytes = name.as_bytes();
         let callback_erased = move |json_in: &[u8]| -> Result<String, String> {
             match serde_json::from_slice(json_in) {
@@ -236,10 +234,10 @@ pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F
                         let obj_out = callback(obj_in);
                         match serde_json::to_string_pretty(&obj_out) {
                             Ok(json_out) => Ok(json_out),
-                            Err(e) => Err(String::from(e.description()))
+                            Err(e) => Err(String::from(e.to_string()))
                         }
                 },
-                Err(e) => Err(String::from(e.description()))
+                Err(e) => Err(String::from(e.to_string()))
             }
         };
         let callback_fatty: WiltonCallback = Box::new(callback_erased);
@@ -329,9 +327,8 @@ pub fn create_wilton_error(error_opt: Option<String>) -> *mut c_char {
 ///
 pub fn runscript(call_desc: &serde_json::Value) -> Result<String, String> {
     unsafe {
-        use std::error::Error;
         match serde_json::to_string_pretty(&call_desc) {
-            Err(e) => Err(String::from(e.description())),
+            Err(e) => Err(String::from(e.to_string())),
             Ok(ref mut json) => {
                 let empty = String::new();
                 json.push('\0'); // required by some of JS engines
@@ -352,7 +349,7 @@ pub fn runscript(call_desc: &serde_json::Value) -> Result<String, String> {
                         let slice = std::slice::from_raw_parts(out as *const u8, out_len as usize);
                         let vec = slice.to_vec();
                         match String::from_utf8(vec) {
-                            Err(e) => Err(String::from(e.description())),
+                            Err(e) => Err(String::from(e.to_string())),
                             Ok(str) => Ok(str)
                         }
                     } else {

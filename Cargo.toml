@@ -1,12 +1,12 @@
 [package]
 name = "wilton_rust"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["wilton"]
 
 license = "Apache-2.0"
 description = "Rust modules support for Wilton JavaScript runtime"
 documentation = "https://docs.rs/wilton_rust/"
-repository = "https://github.com/wilton-iot/wilton_rust"
+repository = "https://github.com/wiltonruntime/wilton_rust"
 keywords = ["javascript", "wilton"]
 categories = ["development-tools"]
 
