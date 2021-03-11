@@ -1,11 +1,11 @@
 [package]
-name = "wilton_rust"
+name = "wilton_rusty"
 version = "0.3.0"
-authors = ["wilton"]
+authors = ["staticlibs"]
 
 license = "Apache-2.0"
 description = "Rust modules support for Wilton JavaScript runtime"
-documentation = "https://docs.rs/wilton_rust/"
+documentation = "https://docs.rs/wilton_rusty/"
 repository = "https://github.com/wiltonruntime/wilton_rust"
 keywords = ["javascript", "wilton"]
 categories = ["development-tools"]

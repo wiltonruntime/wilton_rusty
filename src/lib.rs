@@ -20,23 +20,23 @@
 //!
 //! ```
 //!// configure Cargo to build a shared library
-//![lib]
-//!crate-type = ["dylib"]
-//! 
+//!//[lib]
+//!//crate-type = ["dylib"]
+//!
 //!// in lib.rs, import serde and wilton_rust
-//!#[macro_use]
-//!extern crate serde_derive;
-//!extern crate wilton_rust;
-//! ...
+//!//#[macro_use]
+//!//extern crate serde_derive;
+//!//extern crate wilton_rust;
+//!// ...
 //!// declare input/output structs
 //!#[derive(Deserialize)]
-//!struct MyIn { ... }
+//!struct MyIn { }
 //!#[derive(Serialize)]
-//!struct MyOut { ... }
-//! ...
+//!struct MyOut { }
+//!
 //!// write a function that does some work
-//!fn hello(obj: MyIn) -> MyOut { ... }
-//! ...
+//!fn hello(obj: MyIn) -> MyOut { }
+//!
 //!// register that function inside the `wilton_module_init` function,
 //!// that will be called by Wilton during the Rust module load
 //!#[no_mangle]
@@ -204,13 +204,13 @@ extern "system" fn wilton_cb(
 /// ```
 /// // declare input/output structs
 ///#[derive(Deserialize)]
-///struct MyIn { ... }
+///struct MyIn { }
 ///#[derive(Serialize)]
-///struct MyOut { ... }
-/// ...
+///struct MyOut {  }
+///
 /// // write a function that does some work
-///fn hello(obj: MyIn) -> MyOut { ... }
-/// ...
+///fn hello(obj: MyIn) -> MyOut { }
+///
 /// // register that function inside the `wilton_module_init` function,
 /// // that will be called by Wilton during the Rust module load
 ///#[no_mangle]
@@ -281,11 +281,13 @@ pub fn register_wiltocall<I: serde::de::DeserializeOwned, O: serde::Serialize, F
 /// // check for error
 ///if res.is_err() {
 ///    // return error message to Wilton
-///    return wilton_rust::create_wilton_error(res.err());
+///    // return wilton_rust::create_wilton_error(res.err());
+///    ()
 ///}
 ///
 /// // return success status to Wilton
 ///wilton_rust::create_wilton_error(None)
+///()
 ///```
 ///
 pub fn create_wilton_error(error_opt: Option<String>) -> *mut c_char {
@@ -323,6 +325,7 @@ pub fn create_wilton_error(error_opt: Option<String>) -> *mut c_char {
 ///    Ok(res) => res,
 ///    Err(e) => panic!(e)
 ///}
+///()
 ///```
 ///
 pub fn runscript(call_desc: &serde_json::Value) -> Result<String, String> {

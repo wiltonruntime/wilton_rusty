@@ -3,8 +3,8 @@ Rust modules support for Wilton JavaScript runtime
 
 This library allows to write Wilton native modules in Rust.
 
- - [crate on crates.io](https://crates.io/crates/wilton_rust)
- - [API documentation](https://docs.rs/wilton_rust/)
+ - [crate on crates.io](https://crates.io/crates/wilton_rusty)
+ - [API documentation](https://docs.rs/wilton_rusty/)
  - [rust module example](https://github.com/wiltonruntime/wilton_examples/tree/master/rust)
 
 
